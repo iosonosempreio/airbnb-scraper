@@ -25,7 +25,7 @@
       <div class="row">
         <div class="col-md-12">
           <h1>AirBnb Scraper</h1>
-          <h2>Search for the available rents in a location and filter them against a geojson for improving the precision.</h2>
+          <h4>Search for the available rents in a location and filter them against a geojson for improving the precision. Max evaluates 1000 results.</h4>
         </div>
       </div>
       <div class="row">
@@ -113,7 +113,7 @@
             function call(value){
               d3.json(buildURL(value), function(err,data){
                 if (err) { console.log(err); }
-                console.log(data.search_results.length, data.metadata.listings_count);
+                console.log(offset, data.metadata.listings_count);
                 data.search_results.forEach(function(r){
                   var point = {
                     "type": "Feature",
@@ -153,7 +153,7 @@
                     }
                   }
                 })
-                if (data && data.metadata.pagination.next_offset < data.metadata.listings_count) {
+                if (data && data.metadata.pagination.next_offset < data.metadata.listings_count && offset <= 900) {
                   offset += 50;
                   setTimeout(function(){
                     call(offset);
@@ -172,7 +172,7 @@
           function call(value){
             d3.json(buildURL(value), function(err,data){
               if (err) { console.log(err); }
-              console.log(data.search_results.length, data.metadata.listings_count);
+              console.log(offset, data.metadata.listings_count);
               data.search_results.forEach(function(r){
                 var obj = {};
                 if (d3.select('#save-pictures').property('checked')) {
@@ -199,7 +199,7 @@
                   results.push(r);
                 }
               })
-              if (data && data.metadata.pagination.next_offset < data.metadata.listings_count) {
+              if (data && data.metadata.pagination.next_offset < data.metadata.listings_count && offset <= 900) {
                 offset += 50;
                 setTimeout(function(){
                   call(offset);
