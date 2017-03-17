@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <title>Facebook Page ID Extractor</title>
+    <title>Scrape AirBnb</title>
 
     <!-- Bootstrap -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
@@ -24,17 +24,27 @@
     <div class="container">
       <div class="row">
         <div class="col-md-12">
+          <h1>AirBnb Scraper</h1>
+          <h2>Search for the available rents in a location and filter them against a geojson for improving the precision.</h2>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-12">
           <form>
             <div class="form-group">
               <label for="location">Location (e.g. Città Studi, Milano)</label>
               <input type="text" class="form-control" id="location" placeholder="Location">
             </div>
-              <div class="checkbox">
-                <label>
-                  <input type="checkbox" id="save-pictures"> Summarize data
-                </label>
-              </div>
-            <input type="button" class="btn btn-primary " id="" value="Go!" onclick="scrape();"/>
+            <div class="form-group">
+              <label for="location">GEOJson (e.g. https://raw.githubusercontent.com/iosonosempreio/wannabe/master/cs.json)</label>
+              <input type="text" class="form-control" id="geo-filter" placeholder="GEOJson">
+            </div>
+            <div class="checkbox">
+              <label>
+                <input type="checkbox" id="save-pictures"> Summarize data
+              </label>
+            </div>
+            <input type="button" class="btn btn-primary" value="Go!" onclick="scrape(d3.select('#geo-filter').property('value'));"/>
           </form>
         </div>
       </div>
@@ -46,6 +56,7 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/1.3.3/FileSaver.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/4.7.3/d3.min.js"></script>
+    <script src="https://npmcdn.com/@turf/turf/turf.min.js"></script>
     <script src="https://use.fontawesome.com/28506796e6.js"></script>
     
     <script>
@@ -91,53 +102,117 @@
         return url;
       }
 
-      function scrape() {
-        options['location'] = encodeURIComponent(d3.select('#location').property('value'));
-        var offset = 0;
-        call(0);
-        function call(value){
-          d3.json(buildURL(value), function(err,data){
-            if (err) { console.log(err); }
-            console.log(data.search_results.length, data.metadata.listings_count);
-            data.search_results.forEach(function(r){
-              var obj = {};
-              if (d3.select('#save-pictures').property('checked')) {
-                obj.price = r.pricing_quote.nightly_price;
-                obj.currency = r.pricing_quote.listing_currency;
-                obj.bathrooms = r.listing.bathrooms;
-                obj.beds = r.listing.beds;
-                obj.city = r.listing.city;
-                obj.instant_bookable = r.listing.instant_bookable;
-                obj.lat = r.listing.lat;
-                obj.lng = r.listing.lng;
-                obj.name = r.listing.name;
-                obj.person_capacity = r.listing.person_capacity;
-                obj.reviews_count = r.listing.reviews_count;
-                obj.type = r.listing.room_type;
-                obj.bedrooms = r.listing.bedrooms;
-                obj.bedrooms = r.listing.bedrooms;
-                obj.bedrooms = r.listing.bedrooms;
-                obj.bedrooms = r.listing.bedrooms;
-                obj.bedrooms = r.listing.bedrooms;
-                obj.bedrooms = r.listing.bedrooms;
-
-
-                results.push(obj);
+      function scrape(geojson) {
+        if (geojson) {
+          d3.json(geojson, function(err,poly){
+            poly = poly.features[0];
+            console.log(poly);
+            options['location'] = encodeURIComponent(d3.select('#location').property('value'));
+            var offset = 0;
+            call(0);
+            function call(value){
+              d3.json(buildURL(value), function(err,data){
+                if (err) { console.log(err); }
+                console.log(data.search_results.length, data.metadata.listings_count);
+                data.search_results.forEach(function(r){
+                  var point = {
+                    "type": "Feature",
+                    "properties": {
+                      "marker-color": "#f00"
+                    },
+                    "geometry": {
+                      "type": "Point",
+                      "coordinates": [r.listing.lng, r.listing.lat]
+                    }
+                  };
+                  var isInside = turf.inside(point, poly);
+                  if (isInside) {
+                    var obj = {};
+                    if (d3.select('#save-pictures').property('checked')) {
+                      obj.price = r.pricing_quote.nightly_price;
+                      obj.currency = r.pricing_quote.listing_currency;
+                      obj.bathrooms = r.listing.bathrooms;
+                      obj.beds = r.listing.beds;
+                      obj.city = r.listing.city;
+                      obj.instant_bookable = r.listing.instant_bookable;
+                      obj.lat = r.listing.lat;
+                      obj.lng = r.listing.lng;
+                      obj.name = r.listing.name;
+                      obj.person_capacity = r.listing.person_capacity;
+                      obj.reviews_count = r.listing.reviews_count;
+                      obj.type = r.listing.room_type;
+                      obj.bedrooms = r.listing.bedrooms;
+                      obj.bedrooms = r.listing.bedrooms;
+                      obj.bedrooms = r.listing.bedrooms;
+                      obj.bedrooms = r.listing.bedrooms;
+                      obj.bedrooms = r.listing.bedrooms;
+                      obj.bedrooms = r.listing.bedrooms;
+                      results.push(obj);
+                    } else {
+                      results.push(r);
+                    }
+                  }
+                })
+                if (data && data.metadata.pagination.next_offset < data.metadata.listings_count) {              
+                  offset += 50;
+                  setTimeout(function(){
+                    call(offset);
+                  }, 0);
+                } else {
+                  console.log('finished', results);
+                  downloadData(results);
+                }
+              })
+            }
+          }); 
+        } else {
+          options['location'] = encodeURIComponent(d3.select('#location').property('value'));
+          var offset = 0;
+          call(0);
+          function call(value){
+            d3.json(buildURL(value), function(err,data){
+              if (err) { console.log(err); }
+              console.log(data.search_results.length, data.metadata.listings_count);
+              data.search_results.forEach(function(r){
+                var obj = {};
+                if (d3.select('#save-pictures').property('checked')) {
+                  obj.price = r.pricing_quote.nightly_price;
+                  obj.currency = r.pricing_quote.listing_currency;
+                  obj.bathrooms = r.listing.bathrooms;
+                  obj.beds = r.listing.beds;
+                  obj.city = r.listing.city;
+                  obj.instant_bookable = r.listing.instant_bookable;
+                  obj.lat = r.listing.lat;
+                  obj.lng = r.listing.lng;
+                  obj.name = r.listing.name;
+                  obj.person_capacity = r.listing.person_capacity;
+                  obj.reviews_count = r.listing.reviews_count;
+                  obj.type = r.listing.room_type;
+                  obj.bedrooms = r.listing.bedrooms;
+                  obj.bedrooms = r.listing.bedrooms;
+                  obj.bedrooms = r.listing.bedrooms;
+                  obj.bedrooms = r.listing.bedrooms;
+                  obj.bedrooms = r.listing.bedrooms;
+                  obj.bedrooms = r.listing.bedrooms;
+                  results.push(obj);
+                } else {
+                  results.push(r);
+                }
+              })
+              if (data && data.metadata.pagination.next_offset < data.metadata.listings_count) {              
+                offset += 50;
+                setTimeout(function(){
+                  call(offset);
+                }, 0);
               } else {
-                results.push(r);
+                console.log('finished', results);
+                downloadData(results);
               }
             })
-            if (data && data.metadata.pagination.next_offset < data.metadata.listings_count) {              
-              offset += 50;
-              setTimeout(function(){
-                call(offset);
-              }, 0);
-            } else {
-              console.log('finished', results);
-              downloadData(results);
-            }
-          })
+          }
         }
+        
+        
       }
 
       function downloadData(data) {
