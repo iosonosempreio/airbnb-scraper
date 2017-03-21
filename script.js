@@ -39,8 +39,9 @@ document.getElementById('inputGEOJSON')
         "type": "fill",
         "source": "input_geometries",
         "paint": {
-            "fill-color": "#888888",
-            "fill-opacity": 0.4
+            "fill-color": "#666666",
+            "fill-opacity": 0.4,
+            "fill-outline-color": "#000000"
         },
         "filter": ["==", "$type", "Polygon"]
     });
